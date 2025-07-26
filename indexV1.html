@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POP Scratch - Kartu Gosok Digital</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0F172A;
+            color: white;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+        }
+        
+        .scratch-card {
+            position: relative;
+            width: 300px;
+            height: 150px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .scratch-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('scratch-overlay.png');
+            background-size: cover;
+        }
+        
+        .prize-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .btn-gradient {
+            background: linear-gradient(45deg, #FF512F 0%, #F09819 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .game-id-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+        
+        .ticket-category {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .ticket-category-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .ticket-category.active .ticket-category-content {
+            max-height: 500px;
+        }
+        
+        .verification-code {
+            letter-spacing: 0.3em;
+            font-family: monospace;
+            font-size: 1.25rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Notification Toast -->
+    <div id="notification" class="notification">
+        <span id="notification-message">🎉 2 Tiket berhasil diklaim!</span>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-xl w-11/12 max-w-md">
+            <div class="text-center mb-6">
+                <img src="logo.png" alt="POP Scratch Logo" class="h-16 mx-auto mb-4">
+                <h2 class="text-2xl font-bold text-white">Selamat Datang di POP Scratch</h2>
+                <p class="text-gray-300 mt-2">Gosok dan dapatkan hadiah menarik!</p>
+            </div>
+            
+            <button id="telegramLoginBtn" class="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                <i class="fab fa-telegram text-xl mr-2"></i>
+                <span class="font-medium">Login via Telegram</span>
+            </button>
+            
+            <p class="text-gray-400 text-sm text-center mt-4">
+                Dengan login, kamu menyetujui <a href="#" class="text-blue-400">Syarat & Ketentuan</a> kami.
+            </p>
+        </div>
+    </div>
+
+    <!-- Game ID Registration Modal (shows after first login) -->
+    <div id="gameIdRegistrationModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-xl w-11/12 max-w-md">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white">Daftarkan Game ID</h2>
+                <p class="text-gray-300 mt-2">Daftarkan minimal 1 Game ID untuk mulai bermain</p>
+            </div>
+            
+            <div class="space-y-4 mb-6">
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POPBRA</h4>
+                        <img src="popbra-logo.png" alt="POPBRA Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" id="popbraGameId" placeholder="Masukkan Game ID POPBRA" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POP888</h4>
+                        <img src="pop888-logo.png" alt="POP888 Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" id="pop888GameId" placeholder="Masukkan Game ID POP888" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POP678</h4>
+                        <img src="pop678-logo.png" alt="POP678 Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" id="pop678GameId" placeholder="Masukkan Game ID POP678" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4 p-3 bg-yellow-800 bg-opacity-30 rounded-lg text-yellow-200 text-sm">
+                <p>⚠️ Perhatian:</p>
+                <ul class="list-disc pl-5 mt-1 space-y-1">
+                    <li>Minimal daftarkan 1 Game ID</li>
+                    <li>Satu platform hanya untuk 1 Game ID</li>
+                    <li>Perubahan Game ID memerlukan persetujuan admin</li>
+                </ul>
+            </div>
+            
+            <button id="saveGameIdsBtn" class="btn-gradient w-full py-3 rounded-lg font-medium">
+                Simpan Game ID
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="gradient-bg p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <img src="logo.png" alt="POP Scratch Logo" class="h-10">
+            <div class="flex items-center">
+                <div id="userProfile" class="flex items-center cursor-pointer">
+                    <span id="username" class="mr-2 hidden md:inline">@joaopedro</span>
+                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="User Avatar" class="w-10 h-10 rounded-full">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 pb-24">
+        <!-- Balance Info -->
+        <div class="bg-gray-800 rounded-xl p-4 mb-6 shadow-lg">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-gray-400 text-sm">Tiket Saya</p>
+                    <h3 class="text-2xl font-bold">5 Tiket</h3>
+                </div>
+                <button id="getTicketBtn" class="btn-gradient py-2 px-6 rounded-lg font-medium">
+                    🎟️ DAPATKAN TIKET
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="mb-6">
+            <div class="flex border-b border-gray-700 overflow-x-auto">
+                <button class="tab-btn active px-4 py-3 font-medium text-white border-b-2 border-orange-500" data-tab="scratch">Kartu Gosok</button>
+                <button class="tab-btn px-4 py-3 font-medium text-gray-400 border-b-2 border-transparent" data-tab="tickets">Tiket Saya</button>
+                <button class="tab-btn px-4 py-3 font-medium text-gray-400 border-b-2 border-transparent" data-tab="profile">Profil</button>
+                <button class="tab-btn px-4 py-3 font-medium text-gray-400 border-b-2 border-transparent" data-tab="winners">Pemenang</button>
+            </div>
+        </div>
+
+        <!-- Tab Contents -->
+        <!-- Scratch Card Tab -->
+        <div id="scratch-tab" class="tab-content active">
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold mb-2">Gosok Kartumu Sekarang!</h2>
+                <p class="text-gray-400">Gesek untuk melihat hadiahmu</p>
+            </div>
+
+            <div class="scratch-card mb-6">
+                <div class="prize-content">
+                    <span>R$50</span>
+                </div>
+                <canvas id="scratch-canvas" class="scratch-area"></canvas>
+            </div>
+
+            <div class="flex justify-center mb-8">
+                <button id="scratchBtn" class="btn-gradient py-3 px-8 rounded-lg font-medium text-lg">
+                    <i class="fas fa-hand-point-up mr-2"></i> Gosok Sekarang
+                </button>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-4">
+                <h3 class="font-bold text-lg mb-2">🏆 Hadiah yang Bisa Kamu Dapatkan</h3>
+                <ul class="space-y-2">
+                    <li class="flex items-center">
+                        <span class="text-yellow-400 mr-2">•</span>
+                        <span>Saldo Bonus R$50 - R$500</span>
+                    </li>
+                    <li class="flex items-center">
+                        <span class="text-yellow-400 mr-2">•</span>
+                        <span>Merchandise Eksklusif POP</span>
+                    </li>
+                    <li class="flex items-center">
+                        <span class="text-yellow-400 mr-2">•</span>
+                        <span>Tiket Tambahan</span>
+                    </li>
+                    <li class="flex items-center">
+                        <span class="text-yellow-400 mr-2">•</span>
+                        <span>Free Spin di Game Favorit</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- My Tickets Tab -->
+        <div id="tickets-tab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Tiket Saya</h2>
+            
+            <div class="bg-gray-800 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-medium">Tiket #12345</h3>
+                    <span class="px-2 py-1 bg-green-800 text-green-300 rounded-full text-xs">Belum Digunakan</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-gray-400 text-sm">Diperoleh: 24 Juli 2025</p>
+                    <p class="text-gray-400 text-sm">Platform: <span class="text-blue-300">POPBRA</span></p>
+                </div>
+                <div class="mt-3">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm">
+                        Gunakan Tiket
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-medium">Tiket #12344</h3>
+                    <span class="px-2 py-1 bg-green-800 text-green-300 rounded-full text-xs">Belum Digunakan</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-gray-400 text-sm">Diperoleh: 23 Juli 2025</p>
+                    <p class="text-gray-400 text-sm">Platform: <span class="text-blue-300">POP888</span></p>
+                </div>
+                <div class="mt-3">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm">
+                        Gunakan Tiket
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-medium">Tiket #12343</h3>
+                    <span class="px-2 py-1 bg-gray-700 text-gray-300 rounded-full text-xs">Sudah Digunakan</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-gray-400 text-sm">Diperoleh: 22 Juli 2025</p>
+                    <p class="text-gray-400 text-sm">Platform: <span class="text-blue-300">POPBRA</span></p>
+                </div>
+                <p class="text-gray-300 mt-2">Hasil: <span class="text-yellow-400">Voucher R$50</span></p>
+                <p class="text-gray-400 text-sm">Status: <span class="text-blue-400">Menunggu Verifikasi</span></p>
+            </div>
+        </div>
+
+        <!-- Profile Tab -->
+        <div id="profile-tab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Profil Saya</h2>
+            
+            <div class="bg-gray-800 rounded-xl p-4 mb-6">
+                <div class="flex items-center mb-4">
+                    <img src="https://via.placeholder.com/60" alt="User Avatar" class="w-16 h-16 rounded-full mr-4">
+                    <div>
+                        <h3 class="font-bold text-lg">@joaopedro</h3>
+                        <p class="text-gray-400">Bergabung: 10 Juli 2025</p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between text-center mb-4">
+                    <div class="w-1/2">
+                        <p class="text-gray-400 text-sm">Total Tiket</p>
+                        <p class="text-xl font-bold">8</p>
+                    </div>
+                    <div class="w-1/2">
+                        <p class="text-gray-400 text-sm">Tiket Tersisa</p>
+                        <p class="text-xl font-bold">5</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="font-bold text-lg mb-3">Game IDs Saya</h3>
+            <div class="space-y-4 mb-6">
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POPBRA</h4>
+                        <img src="popbra-logo.png" alt="POPBRA Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" placeholder="Masukkan Game ID POPBRA" value="234567" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POP888</h4>
+                        <img src="pop888-logo.png" alt="POP888 Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" placeholder="Masukkan Game ID POP888" value="345678" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="game-id-card p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-medium">POP678</h4>
+                        <img src="pop678-logo.png" alt="POP678 Logo" class="h-5">
+                    </div>
+                    <div class="flex">
+                        <input type="text" placeholder="Masukkan Game ID POP678" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4 p-3 bg-yellow-800 bg-opacity-30 rounded-lg text-yellow-200 text-sm">
+                <p>⚠️ Perhatian:</p>
+                <ul class="list-disc pl-5 mt-1 space-y-1">
+                    <li>Minimal daftarkan 1 Game ID</li>
+                    <li>Satu platform hanya untuk 1 Game ID</li>
+                    <li>Perubahan Game ID memerlukan persetujuan admin</li>
+                </ul>
+            </div>
+
+            <button class="btn-gradient w-full py-3 rounded-lg font-medium">
+                Simpan Perubahan
+            </button>
+        </div>
+
+        <!-- Winners Tab -->
+        <div id="winners-tab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Pemenang Terbaru</h2>
+            
+            <div class="bg-gray-800 rounded-xl p-4 mb-6">
+                <div class="space-y-4">
+                    <div class="flex items-center border-b border-gray-700 pb-3">
+                        <img src="https://via.placeholder.com/40" alt="Winner Avatar" class="w-10 h-10 rounded-full mr-3">
+                        <div class="flex-1">
+                            <h3 class="font-medium">@maria123</h3>
+                            <p class="text-gray-400 text-sm">24 Juli 2025</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-yellow-400 font-bold">R$100</p>
+                            <p class="text-gray-400 text-xs">Saldo Bonus</p>
+                            <p class="text-gray-400 text-xs">POPBRA</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center border-b border-gray-700 pb-3">
+                        <img src="https://via.placeholder.com/40" alt="Winner Avatar" class="w-10 h-10 rounded-full mr-3">
+                        <div class="flex-1">
+                            <h3 class="font-medium">@pedro456</h3>
+                            <p class="text-gray-400 text-sm">23 Juli 2025</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-yellow-400 font-bold">T-Shirt POP</p>
+                            <p class="text-gray-400 text-xs">Merchandise</p>
+                            <p class="text-gray-400 text-xs">POP888</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center border-b border-gray-700 pb-3">
+                        <img src="https://via.placeholder.com/40" alt="Winner Avatar" class="w-10 h-10 rounded-full mr-3">
+                        <div class="flex-1">
+                            <h3 class="font-medium">@carlos789</h3>
+                            <p class="text-gray-400 text-sm">22 Juli 2025</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-yellow-400 font-bold">R$200</p>
+                            <p class="text-gray-400 text-xs">Saldo Bonus</p>
+                            <p class="text-gray-400 text-xs">POP678</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center border-b border-gray-700 pb-3">
+                        <img src="https://via.placeholder.com/40" alt="Winner Avatar" class="w-10 h-10 rounded-full mr-3">
+                        <div class="flex-1">
+                            <h3 class="font-medium">@ana555</h3>
+                            <p class="text-gray-400 text-sm">21 Juli 2025</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-yellow-400 font-bold">5 Tiket</p>
+                            <p class="text-gray-400 text-xs">Tiket Gratis</p>
+                            <p class="text-gray-400 text-xs">POPBRA</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <img src="https://via.placeholder.com/40" alt="Winner Avatar" class="w-10 h-10 rounded-full mr-3">
+                        <div class="flex-1">
+                            <h3 class="font-medium">@lucas222</h3>
+                            <p class="text-gray-400 text-sm">20 Juli 2025</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-yellow-400 font-bold">R$500</p>
+                            <p class="text-gray-400 text-xs">Saldo Bonus</p>
+                            <p class="text-gray-400 text-xs">POP888</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Get Ticket Modal -->
+    <div id="ticketModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl w-11/12 max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Dapatkan Tiket</h2>
+                <button id="closeTicketModal" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-6 p-3 bg-blue-900 bg-opacity-30 rounded-lg text-blue-200 text-sm">
+                <p>🎟️ <strong>CARA MENDAPATKAN TIKET KARTU GOSOK</strong> 🎟️</p>
+                <p class="mt-1">Tiket hanya bisa diklaim jika syarat dilakukan di hari yang sama dengan request ya!</p>
+            </div>
+            
+            <form id="ticketRequestForm">
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2 font-medium">Pilih Platform</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex items-center justify-center bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-gray-600">
+                            <input type="radio" name="platform" value="POPBRA" class="hidden" checked>
+                            <span class="text-center">POPBRA</span>
+                        </label>
+                        <label class="flex items-center justify-center bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-gray-600">
+                            <input type="radio" name="platform" value="POP888" class="hidden">
+                            <span class="text-center">POP888</span>
+                        </label>
+                        <label class="flex items-center justify-center bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-gray-600">
+                            <input type="radio" name="platform" value="POP678" class="hidden">
+                            <span class="text-center">POP678</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2 font-medium">Game ID</label>
+                    <input type="text" id="gameIdInput" placeholder="Masukkan Game ID Anda" class="bg-gray-700 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-300 mb-3 font-medium">Klaim Tiket Berdasarkan</label>
+                    
+                    <!-- Recharge Category -->
+                    <div class="ticket-category mb-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-700 rounded-t-lg cursor-pointer hover:bg-gray-600">
+                            <div class="font-medium flex items-center">
+                                <i class="fas fa-money-bill-wave mr-2"></i>
+                                <span>1. RECHARGE (DEPOSIT)</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="ticket-category-content bg-gray-700 bg-opacity-50 rounded-b-lg px-4 py-3">
+                            <p class="text-sm mb-2">Recharge di salah satu platform POP pilihanmu:</p>
+                            <ul class="space-y-1 text-sm pl-6 mb-3">
+                                <li>R$50 = 1 tiket</li>
+                                <li>R$100 = 2 tiket</li>
+                                <li>R$150 = 3 tiket</li>
+                                <li>R$200 = 4 tiket</li>
+                                <li>dst...</li>
+                            </ul>
+                            <p class="text-xs text-gray-400 mb-2">📌 Berlaku kelipatan dan akumulasi! Jadi semakin besar deposit kamu, makin banyak tiket langsung masuk kantongmu!</p>
+                            <p class="text-xs text-gray-400">⏰ Hanya dihitung di hari yang sama saat request tiket!</p>
+                            
+                            <div class="mt-3">
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                                    <input type="radio" name="claimType" value="recharge50" class="mr-3">
+                                    <p class="text-sm font-medium">Recharge R$50</p>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="recharge100" class="mr-3">
+                                    <p class="text-sm font-medium">Recharge R$100</p>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="rechargeOther" class="mr-3">
+                                    <p class="text-sm font-medium">Recharge Lainnya</p>
+                                </label>
+                                
+                                <div id="rechargeOtherAmount" class="mt-2 hidden">
+                                    <input type="number" placeholder="Masukkan jumlah recharge" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- VIP Level Category -->
+                    <div class="ticket-category mb-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-700 rounded-t-lg cursor-pointer hover:bg-gray-600">
+                            <div class="font-medium flex items-center">
+                                <i class="fas fa-crown mr-2"></i>
+                                <span>2. CAPAI LEVEL VIP</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="ticket-category-content bg-gray-700 bg-opacity-50 rounded-b-lg px-4 py-3">
+                            <p class="text-sm mb-2">Naikkan VIP Level kamu di salah satu platform POP di hari yang sama, dan langsung dapat tiketnya!</p>
+                            <ul class="space-y-1 text-sm pl-6 mb-3">
+                                <li>VIP 1 → 2 tiket</li>
+                                <li>VIP 2 → 3 tiket</li>
+                                <li>VIP 3 → 5 tiket</li>
+                                <li>VIP 4 → 8 tiket</li>
+                                <li>VIP 5 → 12 tiket</li>
+                            </ul>
+                            <p class="text-xs text-gray-400">📌 Harus naik VIP di hari yang sama dengan request. Kalau kamu udah VIP 2 dari kemarin, gak bisa dipakai untuk klaim hari ini!</p>
+                            
+                            <div class="mt-3">
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                                    <input type="radio" name="claimType" value="vip1" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">VIP 1</p>
+                                        <p class="text-xs text-gray-400">Dapat 2 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="vip2" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">VIP 2</p>
+                                        <p class="text-xs text-gray-400">Dapat 3 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="vip3" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">VIP 3</p>
+                                        <p class="text-xs text-gray-400">Dapat 5 Tiket</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Betting Category -->
+                    <div class="ticket-category mb-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-700 rounded-t-lg cursor-pointer hover:bg-gray-600">
+                            <div class="font-medium flex items-center">
+                                <i class="fas fa-dice mr-2"></i>
+                                <span>3. TOTAL BETTING / ROLLOVER</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="ticket-category-content bg-gray-700 bg-opacity-50 rounded-b-lg px-4 py-3">
+                            <p class="text-sm mb-2">Main terus dan kumpulkan total taruhan kamu di salah satu platform:</p>
+                            <ul class="space-y-1 text-sm pl-6 mb-3">
+                                <li>R$1.000 → 1 tiket</li>
+                                <li>R$2.000 → 2 tiket</li>
+                                <li>R$5.000 → 2 tiket</li>
+                                <li>R$10.000 → 5 tiket</li>
+                                <li>R$15.000 → 5 tiket</li>
+                                <li>R$20.000 → 10 tiket</li>
+                                <li>R$30.000 → 15 tiket</li>
+                            </ul>
+                            <p class="text-xs text-gray-400">📌 Jumlahnya bisa diakumulasi, asal total betting tercapai dalam 1 hari penuh (00:00 – 23:59).</p>
+                            
+                            <div class="mt-3">
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                                    <input type="radio" name="claimType" value="bet1000" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">Total Bet R$1.000</p>
+                                        <p class="text-xs text-gray-400">Dapat 1 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="bet10000" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">Total Bet R$10.000</p>
+                                        <p class="text-xs text-gray-400">Dapat 5 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="betOther" class="mr-3">
+                                    <p class="text-sm font-medium">Total Bet Lainnya</p>
+                                </label>
+                                
+                                <div id="betOtherAmount" class="mt-2 hidden">
+                                    <input type="number" placeholder="Masukkan jumlah total bet" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Daily Activities Category -->
+                    <div class="ticket-category mb-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-700 rounded-t-lg cursor-pointer hover:bg-gray-600">
+                            <div class="font-medium flex items-center">
+                                <i class="fas fa-calendar-check mr-2"></i>
+                                <span>4. AKTIVITAS HARIAN</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="ticket-category-content bg-gray-700 bg-opacity-50 rounded-b-lg px-4 py-3">
+                            <p class="text-sm mb-2">Ikuti aktivitas harian untuk mendapatkan tiket:</p>
+                            <ul class="space-y-1 text-sm pl-6 mb-3">
+                                <li>Menang di salah satu event group VIP → 1 tiket</li>
+                            </ul>
+                            
+                            <div class="mt-3">
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                                    <input type="radio" name="claimType" value="eventVIP" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">Menang Event Group VIP</p>
+                                        <p class="text-xs text-gray-400">Dapat 1 Tiket</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Invite Members Category -->
+                    <div class="ticket-category mb-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-700 rounded-t-lg cursor-pointer hover:bg-gray-600">
+                            <div class="font-medium flex items-center">
+                                <i class="fas fa-user-plus mr-2"></i>
+                                <span>5. INVITE MEMBER KE PLATFORM</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="ticket-category-content bg-gray-700 bg-opacity-50 rounded-b-lg px-4 py-3">
+                            <p class="text-sm mb-2">Ajak temanmu bergabung di platform:</p>
+                            <ul class="space-y-1 text-sm pl-6 mb-3">
+                                <li>1 VALID REFERRAL → 1 tiket</li>
+                                <li>3 VALID REFERRAL → 2 tiket</li>
+                                <li>5 VALID REFERRAL → 3 tiket</li>
+                                <li>10 VALID REFERRAL → 5 tiket</li>
+                                <li>20 VALID REFERRAL → 8 tiket</li>
+                            </ul>
+                            <p class="text-xs text-gray-400">📌 Agar bisa valid, yang kamu undang harus sudah melakukan recharge minimal 1x di platform tersebut</p>
+                            
+                            <div class="mt-3">
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                                    <input type="radio" name="claimType" value="ref1" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">1 Referral</p>
+                                        <p class="text-xs text-gray-400">Dapat 1 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="ref5" class="mr-3">
+                                    <div>
+                                        <p class="text-sm font-medium">5 Referral</p>
+                                        <p class="text-xs text-gray-400">Dapat 3 Tiket</p>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 mt-2">
+                                    <input type="radio" name="claimType" value="refOther" class="mr-3">
+                                    <p class="text-sm font-medium">Jumlah Referral Lainnya</p>
+                                </label>
+                                
+                                <div id="refOtherAmount" class="mt-2 hidden">
+                                    <input type="number" placeholder="Masukkan jumlah referral" class="bg-gray-700 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-gradient w-full py-3 rounded-lg font-medium">
+                    Kirim Permintaan
+                </button>
+                
+                <p class="text-gray-400 text-sm mt-4 text-center">
+                    Admin akan memverifikasi permintaan tiket dalam 24 jam.
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="winModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl w-11/12 max-w-md text-center">
+            <div class="mb-4">
+                <div class="w-24 h-24 mx-auto bg-yellow-500 rounded-full flex items-center justify-center">
+                    <i class="fas fa-trophy text-4xl text-yellow-900"></i>
+                </div>
+            </div>
+            
+            <h2 class="text-2xl font-bold mb-2">Selamat!</h2>
+            <p class="text-lg mb-4">Kamu memenangkan <span id="prizeAmount" class="text-yellow-400 font-bold">Bonus R$50</span> di platform <span id="prizePlatform" class="text-blue-400 font-bold">POPBRA</span> (Game ID: <span id="prizeGameId" class="text-blue-400">234567</span>)</p>
+            
+            <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                <p class="text-gray-300 mb-2">Kode Verifikasi:</p>
+                <p class="verification-code font-bold">POP82XJ4</p>
+            </div>
+            
+            <div class="bg-gray-700 p-4 rounded-lg mb-6">
+                <p class="text-gray-300 mb-2">Status hadiah:</p>
+                <p class="font-medium text-blue-400">Menunggu Verifikasi</p>
+                <p class="text-gray-400 text-sm mt-2">Screenshot ini dan kontak admin sekarang</p>
+            </div>
+            
+            <a href="https://t.me/BKSPOP" target="_blank" class="btn-gradient inline-block w-full py-3 rounded-lg font-medium mb-3">
+                <i class="fab fa-telegram mr-2"></i> Kontak Admin untuk Claim
+            </a>
+            
+            <button id="closeWinModal" class="bg-gray-600 hover:bg-gray-700 text-white w-full py-3 rounded-lg font-medium">
+                Kembali ke Beranda
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-gray-900 py-3 px-4 shadow-lg">
+        <div class="flex justify-between max-w-md mx-auto">
+            <button class="bottom-tab-btn active flex flex-col items-center" data-tab="scratch">
+                <i class="fas fa-ticket-alt text-xl"></i>
+                <span class="text-xs mt-1">Gosok</span>
+            </button>
+            <button class="bottom-tab-btn flex flex-col items-center" data-tab="tickets">
+                <i class="fas fa-list-alt text-xl"></i>
+                <span class="text-xs mt-1">Tiket</span>
+            </button>
+            <button class="bottom-tab-btn flex flex-col items-center" data-tab="profile">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-xs mt-1">Profil</span>
+            </button>
+            <button class="bottom-tab-btn flex flex-col items-center" data-tab="winners">
+                <i class="fas fa-trophy text-xl"></i>
+                <span class="text-xs mt-1">Pemenang</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // DOM Elements
+        const loginModal = document.getElementById('loginModal');
+        const gameIdRegistrationModal = document.getElementById('gameIdRegistrationModal');
+        const telegramLoginBtn = document.getElementById('telegramLoginBtn');
+        const saveGameIdsBtn = document.getElementById('saveGameIdsBtn');
+        const userProfile = document.getElementById('userProfile');
+        const getTicketBtn = document.getElementById('getTicketBtn');
+        const ticketModal = document.getElementById('ticketModal');
+        const closeTicketModal = document.getElementById('closeTicketModal');
+        const ticketRequestForm = document.getElementById('ticketRequestForm');
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notification-message');
+        const scratchBtn = document.getElementById('scratchBtn');
+        const winModal = document.getElementById('winModal');
+        const closeWinModal = document.getElementById('closeWinModal');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const bottomTabBtns = document.querySelectorAll('.bottom-tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const ticketCategories = document.querySelectorAll('.ticket-category');
+        
+        // Canvas for scratch card
+        const canvas = document.getElementById('scratch-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let scratched = 0;
+        let scratchStarted = false;
+        
+        // Track if this is first login
+        let isFirstLogin = true;
+        
+        // Initialize
+        function init() {
+            // Set canvas size to match parent
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+            
+            // Fill canvas with gray color (scratch overlay)
+            ctx.fillStyle = '#7c7c7c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some text and design to the scratch area
+            ctx.font = 'bold 16px Poppins';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('GOSOK DISINI!', canvas.width / 2, canvas.height / 2);
+            
+            // Draw some decorative elements
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    Math.random() * 5 + 1,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Telegram login
+            telegramLoginBtn.addEventListener('click', () => {
+                // Simulate Telegram login
+                loginModal.classList.add('hidden');
+                
+                // If first login, show game ID registration modal
+                if (isFirstLogin) {
+                    gameIdRegistrationModal.classList.remove('hidden');
+                } else {
+                    showNotification('🔐 Login berhasil!');
+                }
+            });
+            
+            // Save Game IDs
+            saveGameIdsBtn.addEventListener('click', () => {
+                // Validate at least one Game ID is entered
+                const popbraGameId = document.getElementById('popbraGameId').value;
+                const pop888GameId = document.getElementById('pop888GameId').value;
+                const pop678GameId = document.getElementById('pop678GameId').value;
+                
+                if (!popbraGameId && !pop888GameId && !pop678GameId) {
+                    showNotification('⚠️ Daftarkan minimal 1 Game ID!');
+                    return;
+                }
+                
+                gameIdRegistrationModal.classList.add('hidden');
+                isFirstLogin = false;
+                showNotification('🔐 Login berhasil dan Game ID disimpan!');
+            });
+            
+            // Get ticket button
+            getTicketBtn.addEventListener('click', () => {
+                ticketModal.classList.remove('hidden');
+            });
+            
+            // Close ticket modal
+            closeTicketModal.addEventListener('click', () => {
+                ticketModal.classList.add('hidden');
+            });
+            
+            // Submit ticket request
+            ticketRequestForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                ticketModal.classList.add('hidden');
+                showNotification('🎟️ Permintaan tiket dikirim!');
+                
+                // Simulate approval after 3 seconds
+                setTimeout(() => {
+                    showNotification('🎉 2 Tiket berhasil diklaim!');
+                }, 3000);
+            });
+            
+            // Tab navigation
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+            
+            // Bottom navigation
+            bottomTabBtns.forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+            
+            // Scratch button
+            scratchBtn.addEventListener('click', () => {
+                // Reset scratch card if already scratched
+                if (scratched > 50) {
+                    init();
+                    scratched = 0;
+                    scratchStarted = false;
+                    scratchBtn.innerHTML = '<i class="fas fa-hand-point-up mr-2"></i> Gosok Sekarang';
+                } else {
+                    // Show "scratch here" animation
+                    showScratchHereAnimation();
+                }
+            });
+            
+            // Close win modal
+            closeWinModal.addEventListener('click', () => {
+                winModal.classList.add('hidden');
+            });
+            
+            // Scratch card touch/mouse events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', stopDrawing);
+            
+            // Ticket category toggles
+            ticketCategories.forEach(category => {
+                const header = category.querySelector('div:first-child');
+                header.addEventListener('click', () => {
+                    category.classList.toggle('active');
+                    const chevron = header.querySelector('.fa-chevron-down');
+                    if (category.classList.contains('active')) {
+                        chevron.style.transform = 'rotate(180deg)';
+                    } else {
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                });
+            });
+            
+            // Radio button toggles for "Other" input fields
+            document.querySelector('input[name="claimType"][value="rechargeOther"]').addEventListener('change', function() {
+                document.getElementById('rechargeOtherAmount').classList.toggle('hidden', !this.checked);
+            });
+            
+            document.querySelector('input[name="claimType"][value="betOther"]').addEventListener('change', function() {
+                document.getElementById('betOtherAmount').classList.toggle('hidden', !this.checked);
+            });
+            
+            document.querySelector('input[name="claimType"][value="refOther"]').addEventListener('change', function() {
+                document.getElementById('refOtherAmount').classList.toggle('hidden', !this.checked);
+            });
+        }
+        
+        // Touch event handlers
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+        
+        // Scratch card functionality
+        function startDrawing(e) {
+            isDrawing = true;
+            scratchStarted = true;
+            draw(e);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Count scratched pixels
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let transparent = 0;
+            for (let i = 3; i < imageData.data.length; i += 4) {
+                if (imageData.data[i] < 10) transparent++;
+            }
+            
+            scratched = (transparent / (imageData.data.length / 4)) * 100;
+            
+            // If scratched more than 50%, reveal the prize
+            if (scratched > 50 && scratchStarted) {
+                scratchBtn.innerHTML = '<i class="fas fa-redo mr-2"></i> Coba Lagi';
+                
+                // Show win modal with slight delay for better UX
+                setTimeout(() => {
+                    // Set random verification code
+                    const verificationCode = generateVerificationCode();
+                    document.querySelector('.verification-code').textContent = verificationCode;
+                    
+                    // Get the platform and game ID
+                    const platforms = ['POPBRA', 'POP888', 'POP678'];
+                    const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+                    const gameIds = {
+                        'POPBRA': '234567',
+                        'POP888': '345678',
+                        'POP678': '456789'
+                    };
+                    
+                    document.getElementById('prizePlatform').textContent = randomPlatform;
+                    document.getElementById('prizeGameId').textContent = gameIds[randomPlatform] || '000000';
+                    
+                    winModal.classList.remove('hidden');
+                    createConfetti();
+                }, 500);
+            }
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        
+        // Generate random verification code
+        function generateVerificationCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = 'POP';
+            for (let i = 0; i < 5; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+        
+        // Switch between tabs
+        function switchTab(tabId) {
+            // Hide all tab contents
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+            
+            // Update top tab buttons
+            tabBtns.forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('active');
+                    btn.classList.add('text-white');
+                    btn.classList.add('border-orange-500');
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.remove('border-transparent');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.remove('text-white');
+                                        btn.classList.remove('border-orange-500');
+                    btn.classList.add('text-gray-400');
+                    btn.classList.add('border-transparent');
+                }
+            });
+            
+            // Update bottom tab buttons
+            bottomTabBtns.forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('active');
+                    btn.classList.add('text-orange-500');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.remove('text-orange-500');
+                }
+            });
+        }
+        
+        // Show notification
+        function showNotification(message) {
+            notificationMessage.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Show scratch here animation
+        function showScratchHereAnimation() {
+            const handIcon = document.createElement('div');
+            handIcon.className = 'absolute z-10 text-white text-3xl animate-pulse';
+            handIcon.style.top = '50%';
+            handIcon.style.left = '50%';
+            handIcon.style.transform = 'translate(-50%, -50%)';
+            handIcon.innerHTML = '<i class="fas fa-hand-point-up"></i>';
+            
+            canvas.parentElement.appendChild(handIcon);
+            
+            setTimeout(() => {
+                handIcon.remove();
+            }, 2000);
+        }
+        
+        // Create confetti effect
+        function createConfetti() {
+            const confettiContainer = document.createElement('div');
+            confettiContainer.className = 'confetti';
+            document.body.appendChild(confettiContainer);
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.style.position = 'absolute';
+                confetti.style.width = `${Math.random() * 10 + 5}px`;
+                confetti.style.height = `${Math.random() * 5 + 5}px`;
+                confetti.style.backgroundColor = ['#FFD700', '#FF6347', '#4CAF50', '#3498DB'][Math.floor(Math.random() * 4)];
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.top = '-20px';
+                confetti.style.opacity = Math.random() + 0.5;
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                confetti.style.animation = `fall ${Math.random() * 3 + 2}s linear forwards`;
+                
+                confettiContainer.appendChild(confetti);
+            }
+            
+            // Add fall animation style
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fall {
+                    to {
+                        transform: translateY(100vh) rotate(${Math.random() * 360}deg);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Remove confetti after animation
+            setTimeout(() => {
+                confettiContainer.remove();
+            }, 5000);
+        }
+        
+        // Initialize the app
+        window.addEventListener('DOMContentLoaded', () => {
+            init();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
